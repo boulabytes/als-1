@@ -9,6 +9,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
+from scipy.signal import convolve2d
 from skimage import exposure
 
 from als.code_utilities import log, Timer, SignalingQueue
@@ -338,6 +339,39 @@ class Standardize(ImageProcessor):
             image.set_color_axis_as(0)
 
         image.data = np.float32(image.data)
+
+        return image
+
+
+class HotPixelRemover(ImageProcessor):
+    """Provides hot pixels removal"""
+
+    @staticmethod
+    def _neighbors_average(data):
+        """
+        returns an array containing the means of all original array's pixels' neighbors
+        :param data: the image to compute means for
+        :return: an array containing the means of all original array's pixels' neighbors
+        :rtype: np.Array
+        """
+
+        kernel = np.ones((3, 3))
+        kernel[1, 1] = 0
+
+        neighbor_sum = convolve2d(data, kernel, mode='same', boundary='fill', fillvalue=0)
+        num_neighbor = convolve2d(np.ones(data.shape), kernel, mode='same', boundary='fill', fillvalue=0)
+
+        return (neighbor_sum / num_neighbor).astype(data.dtype)
+
+    @log
+    def process_image(self, image: Image):
+
+        # the idea is to check every pixel value against its 8 neighbors
+        # if its value is more than _HOT_RATIO times the mean of its neighbors' values
+        # me replace its value with that mean
+        _HOT_RATIO = 2  # TODO : should maybe user definable
+        means = HotPixelRemover._neighbors_average(image.data)
+        image.data = np.where(image.data / means > _HOT_RATIO, means, image.data)
 
         return image
 
