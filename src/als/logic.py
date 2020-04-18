@@ -37,7 +37,8 @@ from als.io.output import ImageSaver
 from als.model.base import Image, Session
 from als.model.data import STACKING_MODE_MEAN, DYNAMIC_DATA, WORKER_STATUS_BUSY, WORKER_STATUS_IDLE
 from als.model.params import ProcessingParameter
-from als.processing import Pipeline, Debayer, Standardize, ConvertForOutput, Levels, ColorBalance, AutoStretch, RemoveDark, HotPixelRemover
+from als.processing import Pipeline, Debayer, Standardize, ConvertForOutput, Levels, ColorBalance, AutoStretch, \
+RemoveDark, HotPixelRemover
 from als.stack import Stacker
 
 gettext.install('als', 'locale')
