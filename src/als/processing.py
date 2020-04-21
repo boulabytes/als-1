@@ -424,18 +424,43 @@ class RemoveDark(ImageProcessor):
         if config.get_use_master_dark():
             masterdark = als_input.read_disk_image(Path(config.get_master_dark_file_path()))
             if masterdark is not None:
-                if image.is_same_shape_as(masterdark) and (image.data.dtype.name == masterdark.data.dtype.name):
+                if image.is_same_shape_as(masterdark):
+
+                    if image.data.dtype.name != masterdark.data.dtype.name:
+
+                        # master dark and light data types don't match : converting...
+                        if issubclass(image.data.dtype.type, np.integer):
+                            image_min_allowed = np.iinfo(image.data.dtype).min
+                            image_max_allowed = np.iinfo(image.data.dtype).max
+                        elif issubclass(image.data.dtype.type, np.floating):
+                            image_min_allowed = 0.0
+                            image_max_allowed = 1.0
+                        else:
+                            raise ProcessingError(f"unhandled image data type : {image.data.dtype.type}")
+
+                        if issubclass(masterdark.data.dtype.type, np.integer):
+                            masterdark_min_allowed = np.iinfo(masterdark.data.dtype).min
+                            masterdark_max_allowed = np.iinfo(masterdark.data.dtype).max
+                        elif issubclass(masterdark.data.dtype.type, np.floating):
+                            masterdark_min_allowed = 0.0
+                            masterdark_max_allowed = 1.0
+                        else:
+                            raise ProcessingError(f"unhandled masterdark data type : {masterdark.data.dtype.type}")
+
+                        masterdark.data = np.interp(
+                            masterdark.data,
+                            (masterdark_min_allowed, masterdark_max_allowed),
+                            (image_min_allowed, image_max_allowed)).astype(image.data.dtype)
+
                     image.data = np.where(image.data > masterdark.data, image.data - masterdark.data, 0)
-                    _LOGGER.info(
-                        f"Success: Dark removed.")
+
                 else:
                     _LOGGER.warning(
-                        f"Error: Data structure divergeance between {image} and {masterdark}. "
-                        f"Dark removal will be ignored")
+                        f"Data structure inconsistency between {image.origin} and {masterdark.origin}. "
+                        "Dark subtraction is SKIPPED")
             else:
                 _LOGGER.warning(
-                    f"Error reading {config.get_master_dark_file_path()} : "
-                    f"Dark removal will be ignored")
+                    f"Could not read dark file {config.get_master_dark_file_path()}. Dark subtraction is SKIPPED")
 
         return image
 
